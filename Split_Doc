@@ -1,0 +1,132 @@
+### Migration Document: Ownership Splits Logic Flow  
+
+#### **Overview**  
+This module manages the splitting of ownership interests for a lease/property. Key functions include:  
+- **Initializing** ownership arrays.  
+- **Displaying** original owner/lease details.  
+- **Managing** a list of split owners (add/edit/validate).  
+- **Calculating** new ownership percentages/interests.  
+- **Updating** lease records and audit trails upon save.  
+
+---
+
+### **Step-by-Step Logic Flow**  
+
+#### **1. Initialization & Setup**  
+- **Purpose**: Prepare data structures for ownership splits.  
+- **Actions**:  
+  - Reset arrays tracking owners, percentages, and interests if first access (`SPLFLG = '0'`).  
+  - Set flag `SPLFLG = '1'` to mark subsequent accesses.  
+  - Clear error indicators (e.g., `IN06`, `IN70`).  
+
+#### **2. Display Original Owner Details**  
+- **Purpose**: Show the current owner being split from.  
+- **Actions**:  
+  - Fetch owner details (name, address) from the owner master file (`MNOLFO`).  
+  - Format city/state/zip for display (handles ZIP+4 logic).  
+- **Error Handling**:  
+  - If owner not found, flag `IN21` and log error `IO`.  
+
+#### **3. Load Lease Details**  
+- **Purpose**: Retrieve lease information to split.  
+- **Actions**:  
+  - Fetch lease data from the lease detail file (`MNDLFL`).  
+  - Save original decimal interest (`SVDECI`) and operator (`SVSOPR`).  
+
+#### **4. Restore Previous Splits**  
+- **Purpose**: Reapply saved splits from prior sessions.  
+- **Actions**:  
+  - Loop through saved owners/percentages (`SVSO`, `SVSP`).  
+  - For each valid entry:  
+    - Add to current owner array (`SO`) if not duplicated.  
+    - Fetch owner names from `MNOLFO` for display.  
+
+#### **5. Populate Subfile (Display Grid)**  
+- **Purpose**: List all split owners in a user-editable grid.  
+- **Actions**:  
+  - Clear subfile and remove duplicate owners.  
+  - For each owner in the array (`SO`):  
+    - Fetch owner details (name from `MNOLFO`).  
+    - Calculate interest (`SI`) from percentage (`SP`).  
+    - Validate:  
+      - Owner exists (error `IO` if missing).  
+      - Not the original owner (error `SO`).  
+      - Interest between 0–100% (error `II` if invalid).  
+  - Display subfile.  
+
+#### **6. Handle User Actions**  
+- **Purpose**: Process user inputs on the subfile.  
+- **Actions**:  
+  - **Add Owner (`INKEY = 'KP'`)**:  
+    - Call program `MNOWFMW1` to select an owner.  
+    - Add to first empty slot in the owner array.  
+  - **Electronic Supplements (`INKEY = 'KQ'`)**:  
+    - Open window to collect electronic supplement details (e.g., `COREAS`, `COYRAP`).  
+    - Validate entries.  
+  - **Save Splits (`INKEY = 'KH'`)**:  
+    - Proceed to update records (Step 7).  
+  - **Reload**: Refresh subfile if data changes.  
+
+#### **7. Save Splits & Update Records**  
+- **Purpose**: Commit splits to the database.  
+- **Actions**:  
+  - **For Each Split Owner**:  
+    - **Update Lease (`MNDLFL`)**:  
+      - Add new lease record or update interest in existing lease.  
+      - Handle alternate owners if present.  
+    - **Create Change Record (`MNDPR7`)**:  
+      - Log split details (owner, new interest, timestamp, user).  
+      - Generate sequence numbers for audit trail.  
+    - **Electronic Supplements**: Write to `MNDPR8` if enabled.  
+  - **Original Owner**:  
+    - **Adjust Interest**: Reduce by total split interests.  
+      - If remaining interest > 0: Update lease.  
+      - If interest = 0: Delete lease record.  
+    - **Log Change**: Record adjustment/deletion in `MNDPR7`.  
+
+#### **8. Error Handling & Validation**  
+- **Critical Checks**:  
+  - All owners must exist in `MNOLFO`.  
+  - Total split interests ≤ original interest (`DEC2 ≥ 0`).  
+  - No duplicate owners in the split list.  
+- **Errors**:  
+  - `IO`: Owner not found.  
+  - `SO`: Owner same as original.  
+  - `II`: Invalid interest (≤0 or ≥100%).  
+  - `IA`: Invalid alternate owner.  
+- **Indicators**:  
+  - `IN06`/`IN12`: Prevent save if errors exist.  
+  - `IN70`: Enable save only if valid.  
+
+#### **9. Finalization**  
+- **Purpose**: Clean up and exit.  
+- **Actions**:  
+  - Release file locks (`LOCKDL = 'N'`).  
+  - Reset flags/indicators.  
+  - End subroutine.  
+
+---
+
+### **Key Business Rules**  
+1. **Original Owner**: Cannot be added as a split owner.  
+2. **Interest Calculation**:  
+   - `New Interest = Original Interest × Split Percentage`.  
+   - Total split interests must not exceed original interest.  
+3. **Electronic Supplements**:  
+   - Optional step triggered by user.  
+   - Requires valid `COREAS` code and year (`COYRAP`).  
+4. **Audit Trail**:  
+   - Every split generates a change record (`MNDPR7`) with sequence numbers.  
+   - Original owner adjustments are logged.  
+
+### **Notes for Non-Coders**  
+- **Arrays**: Lists storing split owners (`SO`), percentages (`SP`), and interests (`SI`).  
+- **Subfile**: A scrollable grid displaying split owners for user interaction.  
+- **Indicators**: Flags (e.g., `IN70`) control what users can do (e.g., enable/disable save).  
+- **Files**:  
+  - `MNOLFO`: Owner master data.  
+  - `MNDLFL`: Lease details.  
+  - `MNDPR7`/`MNDPR8`: Change logs.  
+
+---  
+This document simplifies complex RPG logic into actionable steps for business users. For specifics on database fields or error messages, refer to corresponding file/documentation.

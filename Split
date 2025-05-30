@@ -1,0 +1,916 @@
+     C     WOCSPL        BEGSR
+     *
+     *=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*
+     *  OWNERSHIP SPLITS
+     *=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*
+     *
+     *  ZERO/CLEAR/SETUP ARRAYS WHEN FIRST TIME ACCESS
+ 3b  C                   IF        SPLFLG = '0'
+     C                   EVAL      SO = 0
+     C                   EVAL      SI = 0
+     C                   MOVEA     *ALL' '       ST
+     C                   EVAL      SP = 0
+     C                   EVAL      SVSO = 0
+     C                   EVAL      SVSP = 0
+ 3e  C                   ENDIF
+     C                   MOVE      '1'           SPLFLG
+     *
+     C                   EVAL      *IN06 = *OFF
+     C                   EVAL      *IN70 = *OFF
+     C                   EVAL      *IN12 = *OFF
+     C                   EVAL      *IN72 = *OFF
+     C                   EVAL      *IN73 = *OFF
+     C                   EVAL      *IN38 = *OFF
+     *
+     *  SETUP ORIGINAL OWNER DISPLAY FIELDS
+     C                   EVAL      OWNER = OWNHLD
+     C     OWNKEY        CHAIN     MNOLFO                             21
+ 3b  C                   IF        *IN21 = *OFF
+     C                   EXCEPT    RELO
+     C                   MOVE      'N'           LOCKO
+     C                   EXSR      CHKAUT
+ 3e  C                   ENDIF
+     *
+     C                   EVAL      DSPOWN = OWNER
+     C                   MOVEL     NAME30        DSPN30
+     C                   MOVEL     CARE          DSPCAR
+     C                   MOVEL     STREET        DSPSTR
+     C                   EVAL      DSPCSZ = *BLANKS
+ 3b  C                   IF        CTST30 <> *BLANKS
+ 4b  C                   IF        PLUS4 <> *BLANKS
+     C                             AND PLUS4 <> '0000'
+     C                   MOVE      '-'           ZDASH
+ 4x  C                   ELSE
+     C                   EVAL      ZDASH = *BLANKS
+ 4e  C                   ENDIF
+     C                   MOVE      CTST30        DSPCSZ
+ 3x  C                   ELSE
+     C                   MOVE      ALTCSZ        DSPCSZ
+ 3e  C                   ENDIF
+     *
+     C                   EVAL      LSETYP = LSTHLD
+     C     DOWKEY        CHAIN     MNDLFL                             21
+ 3b  C                   IF        *IN21 = *OFF
+     C                   EXCEPT    RELDL
+ 3e  C                   ENDIF
+     C                   EVAL      SVDECI = DECINT
+     C                   EVAL      SVSOPR = SOPR
+     *
+     C                   EVAL      TSSOBF = *ZEROS
+     C                   EVAL      TSSIBF = *ZEROS
+     C                   EVAL      TSSPBF = *ZEROS
+     C                   EVAL      TSSOAF = *ZEROS
+     C                   EVAL      TSSIAF = *ZEROS
+     C                   EVAL      TSSPAF = *ZEROS
+     *
+     *  IF PREVIOUS PERCENTAGE SPLITS WERE ENTERED, ADD THEM IN NOW
+     C                   XFOOT     SVSP          SVSHRE
+ 3b  C                   IF        SVSHRE <> *ZEROS
+     *
+ 4b  C                   DO        400           A
+ 5b  C                   IF        SVSO(A) <> *ZEROS
+     C                             AND SVSP(A) <> *ZEROS
+     *
+     *  SEE IF SAVED OWNER EXISTS IN ARRAYS
+     C                   EVAL      B = 1
+     C     SVSO(A)       LOOKUP    SO(B)                                  21
+ 6b  C                   IF        *IN21 = *ON
+     C                   EVAL      SP(B) = SVSP(A)
+     C                   EVAL      SI(B) = *ZEROS
+ 6x  C                   ELSE
+     C                   EVAL      B = 1
+     C     *ZEROS        LOOKUP    SO(B)                                  21
+ 7b  C                   IF        *IN21 = *ON
+     C                   EVAL      SO(B) = SVSO(A)
+     C                   EVAL      ASO(B) = ASVSO(A)
+     C                   EVAL      ST(B) = *BLANKS
+     C                   EVAL      AST(B) = *BLANKS
+     C                   EVAL      SP(B) = SVSP(A)
+     C                   EVAL      SI(B) = *ZEROS
+     C                   EVAL      OWNER = SVSO(A)
+     C                   EVAL      AOWNER = ASVSO(A)
+     C     OWNKEY        CHAIN     MNOLFO                             21
+ 8b  C                   IF        *IN21 = *OFF
+     C                   EXSR      CHKAUT
+     C                   MOVE      NAME30        ST(B)
+ 8e  C                   ENDIF
+ 8b  C                   IF        ASO(B) <> 0
+     C                   Eval      *IN21 = *OFF
+     C     #altown       chain     MNOLFO                             21
+ 9b  C                   If        *IN21 = *Off
+     C                   Eval      ast(b) = name30
+ 9e  C                   Endif
+ 8e  C                   Endif
+     * ADD ALT OWN HERE
+     *
+ 7e  C                   ENDIF
+ 6e  C                   ENDIF
+     *
+ 5e  C                   ENDIF
+ 4e  C                   ENDDO
+ 3e  C                   ENDIF
+     *
+     C     RELOAD        TAG
+     *
+     *  CLEAR SUBFILE
+     C                   EVAL      *IN45 = *ON
+     C                   WRITE     MNSF05                               91
+     C                   EVAL      *IN45 = *OFF
+     C                   EVAL      *IN06 = *OFF
+     C                   EVAL      *IN70 = *OFF
+     C                   EVAL      *IN12 = *OFF
+     C                   EVAL      *IN72 = *OFF
+     C                   EVAL      *IN73 = *OFF
+     C                   EVAL      SFREC = 1
+     *
+     *  SEE IF ANY ARRAY OWNER IS DUPLICATED
+ 3b  C                   DO        400           A
+ 4b  C                   IF        SO(A) <> *ZEROS
+     *
+     C                   EVAL      OWNER = SO(A)
+     C                   EVAL      AOWNER = ASO(A)
+     C                   EVAL      B = 1
+     C     OWNER         LOOKUP    SO(B)                                  21
+ 5b  C                   IF        *IN21 = *ON
+     *
+     *  FIRST TIME IS EXPECTED, LOOK FOR DUP'S
+ 6b  C                   DOU       *IN21 = *OFF
+     C                   ADD       1             B
+     C     OWNER         LOOKUP    SO(B)                                  21
+ 7b  C                   IF        *IN21 = *ON
+     C                   EVAL      SO(B) = *ZEROS
+     C                   EVAL      ASO(B) = *ZEROS
+     C                   EVAL      ST(B) = *BLANKS
+     C                   EVAL      AST(B) = *BLANKS
+     C                   EVAL      SI(B) = *ZEROS
+     C                   EVAL      SP(B) = *ZEROS
+ 7e  C                   ENDIF
+ 6e  C                   ENDDO
+     *
+ 5e  C                   ENDIF
+ 4e  C                   ENDIF
+ 3e  C                   ENDDO
+     *
+     *  INITIAL LOAD FROM ARRAYS
+ 3b  C                   DO        400           A
+     *
+     C                   EVAL      *IN06 = *OFF
+     C                   EVAL      ERRSPL = *BLANKS
+     C                   EVAL      ERRALT = *BLANKS
+     C                   EVAL      OWNER = *ZEROS
+     C                   EVAL      AOWNER = *ZEROS
+     C                   EVAL      NAME30 = *BLANKS
+     C                   MOVE      *BLANKS       ANAME30          30
+     C                   MOVE      *BLANKS       ANAM11           11
+     C                   MOVE      *ZEROS        AOWNER            7 0
+     C                   MOVE      *BLANKS       UPDALT            1
+     C                   MOVE      *BLANKS       ERRALT            2
+     C                   EVAL      ANAME30 = *BLANKS
+     C                   EVAL      NNAM11 = *BLANKS
+     C                   EVAL      ANAM11 = *BLANKS
+     C                   EVAL      NEWINT = *ZEROS
+     C                   EVAL      SHARE = *ZEROS
+     C                   EVAL      *IN86 = *OFF
+     C                   EVAL      *IN60 = *OFF
+     *
+ 4b  C                   IF        SO(A) > 0
+     *
+     *=
+ 5b  C                   IF        ASO(A) > 0
+     C                   EVAL      AOWNER = ASO(A)
+     *    #altown       klist
+     *                  kfld                    hajob#
+     *                  kfld                    aowner
+     *                  Eval      *IN21 = *OFF
+     *    #altown       chain     MNOLFO                             21
+     *                  If        *IN21 = *Off
+     *                  Eval      anam11 = name30
+     *                  Endif
+ 5e  C                   Endif
+     *=
+     C                   EVAL      NAME30 = *BLANKS
+     C                   EVAL      JOB = JOBHLD
+     C                   EVAL      OWNER = SO(A)
+     C                   EVAL      AOWNER = ASO(A)
+     C                   EVAL      ANAME30 = AST(A)
+     C                   EVAL      ANAM11  = AST(A)
+     C                   EVAL      *IN21 = *OFF
+     *
+     C     OWNKEY        CHAIN     MNOLFO                             21
+     C  N21              EXSR      CHKAUT
+     C                   MOVEL     NAME30        NNAM11
+ 5b  C                   IF        *IN21 = *ON
+     C                   EVAL      SI(A) = *ZEROS
+     C                   EVAL      SP(A) = *ZEROS
+ 6b  C                   IF        *IN06 = *OFF
+     C                   MOVEL     'IO'          ERRSPL
+     C                   EVAL      SFREC = A
+ 6e  C                   ENDIF
+     C                   EVAL      *IN06 = *ON
+     C                   EVAL      *IN12 = *ON
+ 5x  C                   ELSE
+     C                   EXCEPT    RELO
+     C                   MOVE      'N'           LOCKO
+ 5e  C                   ENDIF
+     *
+     *  IF SAME AS SPLIT FROM OWNER
+ 5b  C                   IF        OWNER = OWNHLD
+ 6b  C                   IF        *IN06 = *OFF
+     C                   MOVEL     'SO'          ERRSPL
+     C                   EVAL      SFREC = A
+ 6e  C                   ENDIF
+     C                   EVAL      *IN06 = *ON
+     C                   EVAL      *IN12 = *ON
+     *
+ 5x  C                   ELSE
+     *
+     C                   EVAL      LSETYP = LSTHLD
+     C     DOWKEY        CHAIN     MNDLFL                             21
+ 6b  C                   IF        *IN21 = *OFF
+     C                   EXCEPT    RELDL
+     C                   MOVE      'N'           LOCKDL
+ 7b  C                   IF        *IN06 = *OFF
+     C                   MOVEL     'AI'          ERRSPL
+ 7e  C                   ENDIF
+ 6e  C                   ENDIF
+     *
+ 5e  C                   ENDIF
+     *
+     *  CALC SHARE PERCENTAGE IF ENTERED
+ 5b  C                   IF        SP(A) <> *ZEROS
+     C     SVDECI        MULT(H)   SP(A)         NEWINT
+     C     SVDECI        MULT(H)   SP(A)         SI(A)
+     C                   EVAL      SHARE = SP(A)
+ 5x  C                   ELSE
+     C                   EVAL      NEWINT = SI(A)
+     C                   EVAL      SHARE = *ZEROS
+ 5e  C                   ENDIF
+ 5b  C                   IF        NEWINT <= *ZEROS
+     C                             OR NEWINT >= 1
+ 6b  C                   IF        *IN06 = *OFF
+     C                   MOVEL     'II'          ERRSPL
+     C                   EVAL      SFREC = A
+ 6e  C                   ENDIF
+     C                   EVAL      *IN06 = *ON
+     C                   EVAL      *IN12 = *ON
+ 5e  C                   ENDIF
+     *
+ 4e  C                   ENDIF
+     *
+     C                   EVAL      OWNRRN = A
+     C                   EVAL      UPDALT = 'N'
+     C                   WRITE     MNSF06                               95
+ 3e  C                   ENDDO
+     *
+     C                   XFOOT     SI            NEWTOT
+     C     SVDECI        SUB       NEWTOT        DEC2                   7273
+     *
+ 3b  C                   SELECT
+     *
+ 3x  C                   WHEN      *IN06 = *ON
+     C                   EVAL      *IN70 = *OFF
+     *
+ 3x  C                   WHEN      *IN12 = *ON
+     C                   EVAL      *IN70 = *OFF
+     *
+ 3x  C                   WHEN      *IN72 = *ON
+     C                   EVAL      *IN70 = *OFF
+     *
+ 3x  C                   OTHER
+     C                   EVAL      *IN70 = *ON
+     *
+ 3e  C                   ENDSL
+     *
+     *  ACCUM BEFORE OWNERS/INTEREST
+     *
+     C                   XFOOT     SO            TSSOBF
+     C                   XFOOT     SI            TSSIBF
+     C                   XFOOT     SP            TSSPBF
+ 3b  C                   IF        *IN70 = *ON
+     C                   EVAL      *IN70 = TSSOBF > *ZEROS
+ 3e  C                   ENDIF
+ 3b  C                   IF        *IN70 = *ON
+     C                   EVAL      *IN70 = TSSIBF > *ZEROS
+ 3e  C                   ENDIF
+     *
+     C                   EVAL      *IN42 = *ON
+     C                   EVAL      *IN43 = *ON
+ 3b  C                   IF        *IN38 = *OFF
+     C                   WRITE     MNSF06ER
+ 3e  C                   ENDIF
+     C                   EXFMT     MNSF05
+     C                   EVAL      *IN38 = *ON
+     C                   EVAL      *IN06 = *OFF
+     C                   EVAL      *IN12 = *OFF
+     C                   EVAL      *IN70 = *OFF
+     C                   EVAL      *IN72 = *OFF
+     C                   EVAL      *IN73 = *OFF
+     *
+     C     *INKA         CABEQ     *ON           ENCSPL
+     C     *INKB         CABEQ     *ON           ENCSPL
+     C     *INKC         CABEQ     *ON           ENCSPL
+     *
+     *  CHECK FOR NEW SCREEN CHANGES
+     C                   READC     MNSF06                                 97
+ 3b  C                   IF        *IN97 = *OFF
+     C                   EVAL      SO = 0
+     C                   EVAL      SI = 0
+     C                   MOVEA     *ALL' '       ST
+     C                   EVAL      SP = 0
+     C                   EVAL      A = 0
+ 3e  C                   ENDIF
+     *
+ 3b  C                   DOW       *IN97 = *OFF
+     *
+ 4b  C                   IF        OWNER > *ZEROS
+     C                   ADD       1             A
+     C                   EVAL      SO(A) = OWNER
+     C                   EVAL      ASO(A) = AOWNER
+     C                   MOVE      NAME30        ST(A)
+     C                   MOVE      ANAME30       AST(A)
+     C                   EVAL      SI(A) = NEWINT
+     C                   EVAL      SP(A) = SHARE
+ 4e  C                   ENDIF
+     *
+     C                   READC     MNSF06                                 97
+ 3e  C                   ENDDO
+     *
+     *
+     * == START UPDATE ALTERNATE PARCEL
+ 3b  C                   IF        UPDALT = 'Y'                                 UPDATE ALT PARCEL?
+     *    LSEKEY        CHAIN(N)  MNHLFLR                            21
+     C                   EVAL      *IN86 = *Off
+ 4b  C                   IF        UPDALT = 'Y'                                 UPDATE ALT PARCEL?
+     C                   EVAL      JOBSV  = JOB
+ 5b  C                   IF        HAJOB# = 0 OR HALSE# = 0                       ERROR
+     C                   EVAL      *IN86 = *ON
+ 5e  c                   Endif
+ 4e  c                   Endif
+ 3e  c                   Endif
+
+     *                  IF        UPDALT = 'Y'                                 UPDATE ALT PARCEL?
+     *    LSEKEY        CHAIN(N)  MNALFLR                            21
+     *
+     *                  EVAL      JOBSV  = JOB
+     *                  IF        AJOB# = 0 OR ALSE# = 0 OR ARRC# = 0          ERROR
+     *                  EVAL      *IN86 = *ON
+     *                  ELSE
+     *    ALSEKEY       CHAIN(N)  MNDLFL                             21
+     *                  IF        *IN21
+     *call window
+     *                  CALL      'MNOWFMW2'
+     *                  PARM                    JOBSV
+     *                  PARM                    AJOB#
+     *                  PARM      *ZEROS        OWNIN
+     *                  PARM      NAME30        NNAM30
+     *                  PARM      'Y'           SELOWN
+     *                  PARM      8             STRROW
+     *                  PARM      2             STRCOL
+     *
+     *                  EVAL      AOWNER = OWNIN
+     *                  MOVEL     NNAM30        ANAM11
+     *                  MOVEL     NNAM30        ANAME30
+     *                  ENDIF
+     * n21ALSEKEY       CHAIN(N)  MNDLFL                             21
+     *                  IF        *IN21
+     *                  MOVEL     'IA'          ERRALT
+     *                  EVAL      SFREC = A
+     *                  ENDIF
+     *                  ENDIF
+     *
+     *  alternate OWNER SELECTED?
+     *                  IF        OWNIN <> *ZEROS
+     *                            AND NNAM30 <> *BLANKS
+     *                  EVAL      ASO(A) = OWNIN
+     *                  MOVE      NNAM30        AST(A)
+     *                  ENDIF
+     *
+     *                  ENDIF
+     * == END UPDATE ALTERNATE PARCEL
+     *
+     *  C15 - SEARCH FOR OWNER
+ 3b  C                   IF        *INKP = *ON
+     *
+     *  IS SLOT AVAILABLE?
+     C                   EVAL      A = 1
+     C     *ZEROS        LOOKUP    SO(A)                                  97
+ 4b  C                   IF        *IN97 = *ON
+     *
+     C                   EVAL      NNAM30 = *BLANKS
+     C                   MOVEL     'A'           NNAM30
+     C                   EVAL      JOB = JOBHLD
+     C                   CALL      'MNOWFMW1'
+     C                   PARM                    JOB
+     C                   PARM      *ZEROS        OWNIN
+     C                   PARM                    NNAM30
+     C                   PARM      'Y'           SELOWN
+     C                   PARM      8             STRROW
+     C                   PARM      2             STRCOL
+     *
+     *  OWNER SELECTED?
+ 5b  C                   IF        OWNIN <> *ZEROS
+     C                             AND NNAM30 <> *BLANKS
+     C                   EVAL      SO(A) = OWNIN
+     C                   MOVE      NNAM30        ST(A)
+     C                   EVAL      SI(A) = *ZEROS
+     C                   EVAL      SP(A) = *ZEROS
+ 5e  C                   ENDIF
+     *
+ 4e  C                   ENDIF
+ 3e  C                   ENDIF
+     *
+     *
+     *  C16 - ELECTRONIC SUPPLIMENTS WINDOW
+ 3b  C                   IF        *INKQ = *ON
+     *
+     C                   Eval      *in66 = ELCSUP = 'Y'
+ 4b  C                   DOU       COREAS <> *BLANKS AND
+     C                             COYRAP > 1900 OR
+     C                             ELCSUP = 'N'
+     C                   EXFMT     WINDOW1
+ 5b  C                   If        ELCSUP = 'Y'
+     C     COREAS        CHAIN     MNTPF13
+ 6b  C                   If        NOT %FOUND(MNTPF13)
+     C                             or COREAS=' ?' OR COREAS='? ' or COREAS='??'
+     C                   CALL      'MNFM21'
+     C                   PARM      *BLANKS       COREAS
+ 6e  C                   endif
+ 5e  C                   ENDIF
+ 4e  C                   ENDDO
+     C                   Eval      *in66 = ELCSUP = 'Y'
+     *
+ 3e  C                   ENDIF
+     *
+     *  ACCUM AFTER OWNERS/INTEREST
+     C                   XFOOT     SO            TSSOAF
+     C                   XFOOT     SI            TSSIAF
+     C                   XFOOT     SP            TSSPAF
+     *
+     C     TSSOAF        CABNE     TSSOBF        RELOAD
+     C     TSSIAF        CABNE     TSSIBF        RELOAD
+     C     TSSPAF        CABNE     TSSPBF        RELOAD
+     C     *INKH         CABEQ     *OFF          RELOAD
+     *
+     *
+     * COMMAND 8 ONLY AVAILABLE IF 70 *ON
+ 3b  C                   IF        *INKH = *ON
+     *
+     *  SEE IF OWNER BEING SPLIT FROM EXISTS
+     C                   EVAL      COJOB = JOB
+     C                   EVAL      COTYPR = 1
+     C                   EVAL      COLSE# = LSE#
+     C                   EVAL      COSOPR = SVSOPR
+     C                   EVAL      COLSTY = LSTHLD
+     C                   EVAL      COCOWN = OWNHLD
+     *
+     C                   EVAL      *IN21 = *OFF
+     C     COKY7A        CHAIN     MNDLF7A                            21
+     *
+ 4b  C                   IF        *IN21 = *ON
+     *
+     C                   EVAL      *IN21 = *OFF
+     C     JOB           CHAIN     MNDACTPF                           21
+ 5b  C                   IF        *IN21 = *ON
+     C                   EVAL      NACT# = 100
+     C                   WRITE     MNDACTPR
+ 5x  C                   ELSE
+     C                   ADD       1             NACT#
+     C                   UPDATE    MNDACTPR
+ 5e  C                   ENDIF
+     *
+     C                   EVAL      SVCACT = NACT#
+ 4x  C                   ELSE
+     *
+     *  SAVE ACCOUNT NUMBER
+     C                   EVAL      SVCACT = COCACT
+ 4e  C                   ENDIF
+     *
+     *  GET HIGHEST SEQ# USED FOR THIS ACCOUNT NUMBER
+     C                   EVAL      COJOB = JOB
+     C                   EVAL      COTYPR = 1
+     C                   EVAL      COLSE# = LSE#
+     C                   EVAL      COCACT = SVCACT
+     C                   EVAL      COCSQ# = *ZEROS
+     C                   EVAL      *IN21 = *OFF
+     C     COKY7B        CHAIN     MNDLF7B                            21
+     C                   EVAL      NXCOCS = COCSQ#
+     C                   EVAL      @A = *ZEROS
+     C                   EVAL      B = *ZEROS
+     C                   EVAL      SVSO = *ZEROS
+     C                   EVAL      SVSP = *ZEROS
+     *
+     * WRITE OUT SPLITS TO D/O FILE
+ 4b  C                   DO        400           A
+ 5b  C                   IF        SO(A) > 0
+     *
+     *  IF PERCENTAGE ENTERED, SAVE TO ARRAYS FOR NEXT SPLIT
+ 6b  C                   IF        SP(A) <> *ZEROS
+     C                   ADD       1             B
+     C                   EVAL      SVSO(B) = SO(A)
+     C                   EVAL      ASVSO(B) = ASO(A)
+     C                   EVAL      SVSP(B) = SP(A)
+ 6e  C                   ENDIF
+     *
+     C                   EVAL      OWNER = SO(A)
+     C     DOWKEY        CHAIN     MNDLFL                             24         MNDLFL      In
+     C                   EVAL      PRVOWN = OWNHLD
+     C                   EVAL      NEWINT = SI(A)
+     C                   EVAL      DJV = 0
+     C                   EVAL      DUSRDT = UDATE2
+     C                   MOVE      USER          DUSRID
+     C                   MOVE      'P'           DUSRCD
+     *
+     *  UPDATE EXISTING D/O LEASE
+ 6b  C                   IF        *IN24 = *OFF
+     C                   ADD       NEWINT        DECINT
+     c     newint        mult      djv1          ckint            11 0
+ 7b  c                   if        ckint > 0
+ 8b  c                   if        excd <> 'E'
+     *                       tarrant county only
+ 9b  c                   if        job = 122000
+     c                   move      'N'           mndxc1
+ 9e  c                   endif
+     *                       end tarrant county
+ 8e  c                   endif
+ 7e  c                   endif
+     C                   EVAL      DUSRDT = UDATE2
+     C                   MOVE      USER          DUSRID
+     C                   UPDATE    MNDPR                                                    Out
+     c                   add       1             ark#
+     c                   eval      arkl(ark#) = lse#
+     *                  if        arkvsw = 'Y'
+     *                  eval      flag = 'D' + shosel
+     *                  call      'MNARCV003'
+     *                  parm                    job
+     *                  parm                    lse#
+     *                  parm                    sopr
+     *                  parm                    lsetyp
+     *                  parm                    ownhld
+     *                  parm                    flag
+     *                  parm                    codate
+     *                  parm                    cotime
+     *                  parm                    coyrap
+     *                  parm                    cocsq#
+     *                  parm                    newint
+     *                  eval      shosel = 'N'
+     *                  eval      flag = ' ' + shosel
+     *                  call      'MNARCV003'
+     *                  parm                    job
+     *                  parm                    lse#
+     *                  parm                    sopr
+     *                  parm                    lsetyp
+     *                  parm                    owner
+     *                  parm                    flag
+     *                  parm                    codate
+     *                  parm                    cotime
+     *                  parm                    coyrap
+     *                  parm                    cocsq#
+     *                  parm                    newint
+     *                  eval      shosel = 'N'
+     *                  endif
+     C                   MOVE      'N'           LOCKDL
+     *
+     *
+ 6x  C                   ELSE
+     *
+     *  ADD NEW D/O LEASE
+     C                   EVAL      DECINT = NEWINT
+     C                   EVAL      EXCD = *BLANKS
+     C                   EVAL      PROCD = *BLANKS
+     *                       tarrant county
+ 7b  c                   if        job = 122000
+     C                   EVAL      MNDXC1 = 'N'
+ 7e  c                   endif
+     *                       end tarrant county
+     C                   EVAL      MNDXC2 = *BLANKS
+     C                   EVAL      DCLCCD = *BLANKS
+     C                   EVAL      DCLCDT = *ZEROS
+     C                   EVAL      DCLCID = *BLANKS
+     C                   EVAL      DUSRDT = UDATE2
+     C                   MOVE      USER          DUSRID
+     C                   WRITE     MNDPR                                                    Out
+     c                   add       1             ark#
+     c                   eval      arkl(ark#) = lse#
+     *                  if        arkvsw = 'Y'
+     *                  eval      flag = ' ' + shosel
+     *                  call      'MNARCV003'
+     *                  parm                    job
+     *                  parm                    lse#
+     *                  parm                    sopr
+     *                  parm                    lsetyp
+     *                  parm                    owner
+     *                  parm                    flag
+     *                  parm                    codate
+     *                  parm                    cotime
+     *                  parm                    coyrap
+     *                  parm                    cocsq#
+     *                  parm                    newint
+     *                  eval      shosel = 'N'
+     *                  endif
+ 6e  C                   ENDIF
+     *                  ENDIF
+     *
+     * ALTERNATE
+ 6b  C                   IF        ASO(A) <> 0
+     C                   EVAL      JOBSV  = JOB
+     C     *LIKE         DEFINE    LSE#          LSESV
+     C                   Z-ADD     LSE#          LSESV
+     C     *LIKE         DEFINE    rrc           ARRCSV
+     C                   Z-ADD     ARRC          ARRCSV
+     C                   Z-ADD     ASO(A)        AOWNER
+     ***  LSEKEY        CHAIN(N)  MNALFLR                            21
+     C     ALSEKEY       CHAIN     MNDLFL                             21
+     C                   EVAL      PRVOWN = OWNHLD
+     C                   EVAL      NEWINT = SI(A)
+     C                   EVAL      DJV = 0
+     C                   EVAL      DUSRDT = UDATE2
+     C                   MOVE      USER          DUSRID
+     C                   MOVE      'P'           DUSRCD
+     *
+     *  UPDATE EXISTING D/O LEASE
+ 7b  C                   IF        *IN21 = *OFF
+     C                   ADD       NEWINT        DECINT
+     c     newint        mult      djv1          ckint            11 0
+ 8b  c                   if        ckint > 0
+ 9b  c                   if        excd <> 'E'
+     *                      tarrant county
+ 10b c                   if        job = 122000
+     c                   move      'N'           mndxc1
+ 10e c                   endif
+     *                      end tarrant county
+ 9e  c                   endif
+ 8e  c                   endif
+     C                   EVAL      DUSRDT = UDATE2
+     C                   MOVE      USER          DUSRID
+     C                   UPDATE    MNDPR                                                    Out
+     c                   add       1             ark#
+     c                   eval      arkl(ark#) = lse#
+     *                  if        arkvsw = 'Y'
+     *                  eval      flag = ' ' + shosel
+     *                  call      'MNARCV003'
+     *                  parm                    job
+     *                  parm                    lse#
+     *                  parm                    sopr
+     *                  parm                    lsetyp
+     *                  parm                    owner
+     *                  parm                    flag
+     *                  parm                    codate
+     *                  parm                    cotime
+     *                  parm                    coyrap
+     *                  parm                    cocsq#
+     *                  parm                    newint
+     *                  eval      shosel = 'N'
+     *                  endif
+     C                   MOVE      'N'           LOCKDL
+     *
+ 7x  C                   ELSE
+     *
+     *  ADD NEW D/O LEASE
+     C                   EVAL      DECINT = NEWINT
+     C                   EVAL      EXCD = *BLANKS
+     C                   EVAL      PROCD = *BLANKS
+     *                       tarrant county
+ 8b  c                   if        job = 122000
+     C                   EVAL      MNDXC1 = 'N'
+ 8e  c                   endif
+     *                       end tarrant county
+     C                   EVAL      MNDXC2 = *BLANKS
+     C                   EVAL      DCLCCD = *BLANKS
+     C                   EVAL      DCLCDT = *ZEROS
+     C                   EVAL      DCLCID = *BLANKS
+     C                   EVAL      DUSRDT = UDATE2
+     C                   MOVE      USER          DUSRID
+     C                   WRITE     MNDPR                                                    Out
+     c                   add       1             ark#
+     c                   eval      arkl(ark#) = lse#
+     *                  if        arkvsw = 'Y'
+     *                  eval      flag = ' ' + shosel
+     *                  call      'MNARCV003'
+     *                  parm                    job
+     *                  parm                    lse#
+     *                  parm                    sopr
+     *                  parm                    lsetyp
+     *                  parm                    owner
+     *                  parm                    flag
+     *                  parm                    codate
+     *                  parm                    cotime
+     *                  parm                    coyrap
+     *                  parm                    cocsq#
+     *                  parm                    newint
+     *                  eval      shosel = 'N'
+     *                  endif
+ 7e  C                   ENDIF
+     * SET BACK
+     C                   Z-ADD     LSESV         LSE#
+     C                   Z-ADD     jobSV         job
+     C                   Z-ADD     ARRCSV        ARRC
+     *    LSEKEY        CHAIN(N)  MNALFLR                            21
+     ***  lsekey        CHAIN     MNDLFL                             21
+ 6e  C                   ENDIF
+     *
+     * GO BACK TO NON SPLIT OWNER
+     C                   EVAL      OWNER = SO(A)
+     *
+     *  BEFORE WRITING THIS OWNERS SPLIT TO CHANGE RECORD
+     *  GET MOST RECENT OWNER CHANGE RECORD TO SAVE SQ#
+     C                   EVAL      COJOB = JOB
+     C                   EVAL      COTYPR = 1
+     C                   EVAL      COLSE# = LSE#
+     C                   EVAL      COSOPR = SOPR
+     C                   EVAL      COLSTY = LSETYP
+     C                   EVAL      COCOWN = OWNER
+     *
+     C                   EVAL      COCACT = *ZEROS
+     C                   EVAL      COCSQ# = *ZEROS
+     C                   EVAL      COCDEC = *ZEROS
+     C                   EVAL      SVCSQ# = *ZEROS
+     C                   EVAL      SVCDEC = *ZEROS
+     C                   EVAL      SVPACT = *ZEROS
+     C                   EVAL      *IN21 = *OFF
+     C     COKY7A        CHAIN     MNDLF7A                            21
+     C                   EVAL      SVPACT = COCACT
+     C                   EVAL      SVCDEC = COCDEC
+     C                   EVAL      SVCSQ# = COCSQ#
+     *
+     *  WRITE CHANGE RECORD FOR OWNER BEING SPLIT TO
+     C                   EVAL      COJOB = JOB
+     C                   EVAL      COLSE# = LSE#
+     C                   EVAL      COCACT = SVCACT
+     C                   EVAL      COPSQ# = SVCSQ#
+ 6b  C                   IF        SVPACT <> SVCACT
+     C                   EVAL      COPACT = SVPACT
+ 6x  C                   ELSE
+     C                   EVAL      COPACT = *ZEROS
+ 6e  C                   ENDIF
+     C                   EVAL      COTYPR = 1
+     C                   EVAL      COSOPR = SOPR
+     C                   EVAL      COLSTY = LSETYP
+     C                   EVAL      COCOWN = OWNER
+     C                   EVAL      COPOWN = OWNHLD
+     C                   EVAL      COCDEC = DECINT
+ 6b  C                   IF        *IN24 = *ON
+     C                   EVAL      COPDEC = *ZEROS
+     C                   MOVEL     'SPADDOWN'    COTYPE
+ 6e  C                   ENDIF
+ 6b  C                   IF        *IN24 = *OFF
+     C                   EVAL      COPDEC = SVCDEC
+     C                   MOVEL     'CHGINTSP'    COTYPE
+ 6e  C                   ENDIF
+     C                   MOVEL     USER          COUSER
+     C                   MOVE      *YEAR         COYR4
+     C                   MOVE      *MONTH        COMM2
+     C                   MOVE      *DAY          CODD2
+     *
+     *  @A IS USED TO INCREMENT MULTIPLE SPLIT TO'S
+     C                   EVAL      *IN21 = *ON
+     C                   ADD       1             @A
+ 6b  C                   DOU       *IN21 = *OFF
+     C     NXCOCS        ADD       @A            COCSQ#
+     C                   EXSR      PROTME
+     C                   WRITE     MNDPR7                               21
+ 7b  C                   IF        *IN21 = *ON
+     C                   ADD       1             @A
+ 7e  C                   ENDIF
+ 6e  C                   ENDDO
+     *
+     *
+     * BUILD SPLIT CHANGES FILE
+ 6b  C                   If        ELCSUP = 'Y'
+     C                   EXSR      BLDMNDPF8
+     C                   WRITE     MNDPR8
+ 6e  C                   ENDIF
+     C
+ 5e  C                   ENDIF
+ 4e  C                   ENDDO                                                  END DO 56
+     *
+     *  SAVE LAST CURRENT SEQ# USED IN MULTPLE SPLITS
+     C                   EVAL      SVLCSQ = COCSQ#
+     *
+     * UPDATE COMPLETE, TIME FOR SPLIT FROM OWNER
+     C                   EVAL      OWNER = OWNHLD
+     C                   EVAL      job   = jobHLD
+     C                   EVAL      LSETYP = LSTHLD
+     C                   EVAL      LSE#   = LSEHLD
+     C     DOWKEY        CHAIN     MNDLFL                             24
+     *
+     *  BEFORE WRITING THIS OWNERS SPLIT TO CHANGE RECORD
+     *  GET MOST RECENT OWNER CHANGE RECORD TO SAVE SQ#
+     C                   EVAL      COJOB = JOB
+     C                   EVAL      COTYPR = 1
+     C                   EVAL      COLSE# = LSE#
+     C                   EVAL      COSOPR = SVSOPR
+     C                   EVAL      COLSTY = LSETYP
+     C                   EVAL      COCOWN = OWNER
+     *
+     C                   EVAL      COCACT = *ZEROS
+     C                   EVAL      COCSQ# = *ZEROS
+     C                   EVAL      COCDEC = *ZEROS
+     C                   EVAL      SVCSQ# = *ZEROS
+     C                   EVAL      SVCDEC = *ZEROS
+     C                   EVAL      SVPACT = *ZEROS
+     C                   EVAL      *IN21 = *OFF
+     C     COKY7A        CHAIN     MNDLF7A                            21
+     C                   EVAL      SVPACT = COCACT
+     C                   EVAL      SVCDEC = COCDEC
+     C                   EVAL      SVCSQ# = COCSQ#
+     *
+     *  IF SPLIT FROM OWNER HAS A REMAINING DECINT
+ 4b  C                   IF        DEC2 > 0
+     C                   EVAL      DECINT = DEC2
+     C                   EVAL      DUSRDT = UDATE2
+     C                   MOVE      USER          DUSRID
+     C                   MOVE      'P'           DUSRCD
+ 5b  c                   if        excd <> 'E'
+     *                       tarrant county
+ 6b  c                   if        job = 122000
+     c                   move      'N'           mndxc1
+ 6e  c                   endif
+     *                       end tarrant county
+ 5e  c                   endif
+     C                   UPDATE    MNDPR
+     *                  if        arkvsw = 'Y'
+     *                  eval      flag = ' ' + shosel
+     **                 call      'MNARCV003'
+     **                 parm                    job
+     **                 parm                    lse#
+     **                 parm                    sopr
+     **                 parm                    lsetyp
+     **                 parm                    owner
+     **                 parm                    flag
+     **                 parm                    codate
+     **                 parm                    cotime
+     **                 parm                    coyrap
+     **                 parm                    cocsq#
+     **                 parm                    dec2
+     *                  eval      shosel = 'N'
+     *                  endif
+     C                   EXSR      LDOUP
+     C                   MOVE      'N'           LOCKDL
+     *
+     *  CREATE CHGINTSP CHANGE RECORD FOR SPLIT FROM OWNER W/REMAINING INT
+     C                   EVAL      COJOB = JOB
+     C                   EVAL      COLSE# = LSE#
+     C                   EVAL      COCACT = SVCACT
+     C                   EVAL      COPSQ# = SVCSQ#
+ 5b  C                   IF        SVPACT <> SVCACT
+     C                   EVAL      COPACT = SVPACT
+ 5x  C                   ELSE
+     C                   EVAL      COPACT = *ZEROS
+ 5e  C                   ENDIF
+     C                   EVAL      COTYPR = 1
+     C                   EVAL      COSOPR = SVSOPR
+     C                   EVAL      COLSTY = LSETYP
+     C                   EVAL      COCOWN = OWNER
+     C                   EVAL      COPOWN = *ZEROS
+     C                   EVAL      COCDEC = DEC2
+     C                   EVAL      COPDEC = SVCDEC
+     C                   MOVEL     'CHGINTSP'    COTYPE
+     C                   MOVEL     USER          COUSER
+     C                   MOVE      *YEAR         COYR4
+     C                   MOVE      *MONTH        COMM2
+     C                   MOVE      *DAY          CODD2
+     *
+     C                   EVAL      *IN21 = *ON
+     C                   ADD       1             SVLCSQ
+ 5b  C                   DOU       *IN21 = *OFF
+     C                   EVAL      COCSQ# = SVLCSQ
+     C                   EXSR      PROTME
+     C                   WRITE     MNDPR7                               21
+ 6b  C                   IF        *IN21 = *ON
+     C                   ADD       1             SVLCSQ
+ 6e  C                   ENDIF
+ 5e  C                   ENDDO
+     *
+ 4x  C                   ELSE                                                   DEC2 <=0
+     *
+     *  ELSE, REMAINING DECINT=0, DELETE FROM LEASE
+     C                   DELETE    MNDPR
+     *                  if        arkvsw = 'Y'
+     *                  eval      flag = 'D' + shosel
+     *                  call      'MNARCV003'
+     *                  parm                    job
+     *                  parm                    lse#
+     *                  parm                    sopr
+     *                  parm                    lsetyp
+     *                  parm                    owner
+     *                  parm                    flag
+     *                  parm                    codate
+     *                  parm                    cotime
+     *                  parm                    coyrap
+     *                  parm                    cocsq#
+     *                  parm                    svpdec
+     *                  eval      shosel = 'N'
+     *                  endif
+     C                   EXSR      LDOUP
+     C                   MOVE      'N'           LOCKDL
+     *
+ 4e  C                   ENDIF
+     *
+ 3x  C                   ELSE                                                   INKH=0
+     *
+ GO  C                   GOTO      RELOAD
+     *
+ 3e  C                   ENDIF                                                  END INKH=1
+     *
+     C     ENCSPL        ENDSR
+

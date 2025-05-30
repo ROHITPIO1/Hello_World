@@ -1,0 +1,168 @@
+### Migration Document: Duplicate Lease Functionality (DUPLSE)  
+
+#### **Overview**  
+This module duplicates a mineral lease and its division orders (D/Os) to a new lease number. Key functions include:  
+- **Initializing** a work file with existing lease/owner data.  
+- **Validating** target lease number and owner interests.  
+- **Creating** new lease records in header/detail files.  
+- **Handling** alternate leases and computer-generated lease numbers.  
+
+---
+
+### **Step-by-Step Logic Flow**  
+
+#### **1. Initial Load (Function DUPLSE)**  
+- **Purpose**: Prepare work file for duplication.  
+- **SQL Operations**:  
+  ```sql
+  SELECT * FROM MNDPF 
+  WHERE JOB = :job AND LSE# = :lease# AND MNDDEL = ' ' 
+  ORDER BY JOB, LSE#;
+  ```  
+- **Actions**:  
+  - Fetch active lease records (`MNDDEL = ' '`) from work file `MNDPF`.  
+  - For each owner in lease:  
+    - Fetch owner details from master file `MNOPF`:  
+      ```sql  
+      SELECT * FROM MNOPF 
+      WHERE JOB = :job AND OWNER = :owner;
+      ```  
+    - Call `CHKAUT` for authorization checks.  
+  - Insert records into subfile `MNSF09A` and display.  
+
+---
+
+#### **2. Screen MNSF09A/MNSF10A: Duplicate Lease Interface**  
+- **Key Fields**:  
+  - `FROM LEASE`: Original lease number.  
+  - `DUP TO LEASE`: Target lease number (0 = auto-generate).  
+  - `DUP TO ALT LEASE?`: Flag for alternate lease (Y/N).  
+  - `TOT DECINT`: Total decimal interest validation.  
+- **Function Keys**:  
+  - **F3 (C03)**: Cancel duplication.  
+  - **F5 (C05)**: Reload subfile.  
+  - **F21 (C21)**: Execute duplication ("DUP AS IS").  
+
+---
+
+#### **3. F21: Duplicate Lease Execution ("DUP AS IS")**  
+##### **A. Determine New Lease Number**  
+- **If `DUP2ALT = 'Y'` (Alternate Lease)**:  
+  ```sql
+  SELECT HALSE# FROM MNHLFL  -- Fetch alternate lease#
+  WHERE JOB = :job AND LSE# = :original_lease#;
+  ```
+  - Set `NEWLSE = HALSE#`.  
+
+- **Else If User-Specified Lease (`DUPTLS > 0`)**  
+  - **Validation Checks**:  
+    1. Lease existence in header file:  
+       ```sql
+       SELECT COUNT(*) FROM MNHLFL 
+       WHERE JOB = :job AND LSE# = :DUPTLS;
+       ```  
+       → **Error**: `Invalid lse# - does not exist` if count=0.  
+    2. Check for existing D/Os:  
+       ```sql
+       SELECT COUNT(*) FROM MNDLFL 
+       WHERE JOB = :job AND LSE# = :DUPTLS;
+       ```  
+       → **Error**: `Invalid lse# - this lease has D/O's assigned` if count>0.  
+
+- **Else (Auto-Generate Lease#)**:  
+  ```sql
+  UPDATE MNNPF SET NLSE# = NLSE# + 1 
+  WHERE JOB = :job;
+  
+  SELECT NLSE# INTO :NEWLSE FROM MNNPF 
+  WHERE JOB = :job;
+  ```  
+
+##### **B. Create New Lease Records**  
+1. **Insert Lease Header**:  
+   ```sql
+   INSERT INTO MNHPF (JOB, LSE#, ...) 
+   SELECT :job, :NEWLSE, ... 
+   FROM MNHLFL 
+   WHERE JOB = :job AND LSE# = :original_lease#;
+   ```  
+
+2. **Duplicate Division Orders (D/Os)**:  
+   ```sql
+   INSERT INTO MNDLFO (JOB, LSE#, OWNER, ...)
+   SELECT :job, :NEWLSE, OWNER, ...
+   FROM MNDLFL 
+   WHERE JOB = :job AND LSE# = :original_lease#;
+   ```  
+
+3. **Update Owner Files**:  
+   - Call `UPDMNOPF6C(:job, :owner)` to sync owner data.  
+   - Insert into `MNOLFN`/`mnolf3a`:  
+     ```sql
+     INSERT INTO MNOLFN (JOB, OWNER, ...)
+     SELECT :job, OWNER, ... 
+     FROM MNOPF 
+     WHERE JOB = :job AND OWNER = :owner;
+     ```  
+
+##### **C. Interest Validation**  
+- For each owner in subfile:  
+  - If `SCRINT` (screen interest) ≠ `NEWINT` (calculated interest):  
+    - **Check**: `NEWINT BETWEEN 0 AND 1`  
+    → **Error**: `Invalid interest` if invalid.  
+  - If `DELCOD` ≠ blank:  
+    ```sql
+    DELETE FROM MNDPF1  -- Delete work record
+    WHERE LSE# = :lease# AND SOPR = :sopr 
+      AND LSETYP = :lsetyp AND NAME30 = :name30 
+      AND OWNER = :owner;
+    ```  
+
+---
+
+#### **4. Finalization**  
+- **Update Counters**:  
+  ```sql
+  UPDATE MNNPR SET NPAR# = NPAR# + 1 
+  WHERE JOB = :job;
+  ```  
+- Release locks and exit.  
+
+---
+
+### **Key Business Rules**  
+1. **Lease Number Generation**:  
+   - `DUPTLS = 0` → Auto-generate from `MNNPF.NLSE#`.  
+   - `DUPTLS > 0` → Must pass existence/D/O checks.  
+2. **Alternate Lease**:  
+   - Uses `HALSE#` from original lease header (`MNHLFL`).  
+3. **Interest Validation**:  
+   - All split interests must be between 0 and 1 (exclusive).  
+4. **Owner Sync**:  
+   - `UPDMNOPF6C` ensures owner records reflect new lease.  
+
+---
+
+### **Error Handling**  
+| **Error Message**                           | **Condition**                                  |  
+|---------------------------------------------|-----------------------------------------------|  
+| `Invalid lse# - does not exist`             | User-specified lease not in `MNHLFL`.         |  
+| `Invalid lse# - this lease has D/O's assigned` | User-specified lease has D/Os in `MNDLFL`. |  
+| `Invalid interest`                          | Calculated interest ≤0 or ≥1.                 |  
+
+---
+
+### **Notes for Non-Coders**  
+- **Work File (`MNDPF`)**: Temporary storage for lease/owner data during duplication.  
+- **Subfile**: Scrollable list of owners/D/Os on screen.  
+- **Auto-Generated Lease#**: System increments `MNNPF.NLSE#` counter.  
+- **Critical Checks**:  
+  - Target lease must be unused (no existing D/Os).  
+  - Total decimal interest must balance after duplication.  
+- **SQL Impact**:  
+  - Inserts create new lease records.  
+  - Updates adjust counters.  
+  - Deletes remove invalid work records.  
+
+---  
+This document outlines the lease duplication workflow, including validations and SQL operations. For real-time issues (e.g., lock contention), refer to database transaction logs.

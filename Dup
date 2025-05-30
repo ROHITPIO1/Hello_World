@@ -1,0 +1,123 @@
+MNDR03
+   
+  OOOOOOOOOOOOOOOOOOOOOOOOOOOOOO                        C2  SELECT   C2  SELECT 
+                                                        C3  NO CHG   C3  NO ADD 
+      LEASE#.......: 9999999  *** Reinstated Lease ***  C4  SUM      C21 DUPLSE 
+      SORT CODE....: 99999                                           C22 PRDMNU 
+      LEASE NAME...: BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB COPY HDR TO ARCHIVE: B (Y)  
+      FIELD NAME...: BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB           RRC NUMBERS       
+      PIPE LINE....: BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB     6666666 6666666 6666666 
+      OPERATOR.....: BBBBBBBBBBBBBBBBBBBB               6666666 6666666 6666666 
+      SCHOOL CODES.: BBBBBBBBBBBBBBBBBBBB               6666666 6666666 6666666 
+      DESCRIPTION 1: BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB     6666666 6666666 6666666 
+      DESCRIPTION 2: BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB     6666666 6666666 6666666 
+      COMMENT......: BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB     6666666 6666666 6666666 
+      ALT JOB#.....: 9999999 ALT LEASE#...: 9999999          UNIT NUMBERS       
+      YR OF LEASE..: 9999    ACRES.....: 999999.999     6666666 6666666 6666666 
+      MISC CODES...: B BBB   FREEZE VALUES (Y,N)?: B    6666666 6666666 6666666 
+      KANSAS.......: 99999   TR%  .999999999            6666666 6666666 6666666 
+      JUR   PERCENT          JUR   PERCENT          JUR    PERCENT    LOCATION  
+       BB   9.999999          BB   9.999999          BB    9.999999     CODE    
+       BB   9.999999          BB   9.999999          BB    9.999999      OOO    
+       BB   9.999999          BB   9.999999          BB    9.999999             
+      BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB   OOOOOOOOOO 
+ Execute C11 again to delete.       6666666                          66/66/6666 
+                                                               Notes Available.
+Function Keys:
+F21(C21 – DUPLSE): If F21(Function key) pressed then execute the function DUPLSE. (Start the logic from DUPLSE function)
+
+Initial load:
+Function DUPLSE:
+Select *from MNDPF using JOB and LSE# Order by JOB and LSE#
+if MNDDEL = ‘ ‘, Then do the following.
+Select *from MNOPF using JOB and OWNER order by JOB and OWNER
+If record found in MNOPF then call the Function CHKAUT (Refer to MNFM01_Final)
+Insert the records on screen MNSF09A.
+Display the screen MNSF09A.
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+MNSF09A/MNSF10A – MINERAL DIVISION ORDER  DUP LEASE WORK FILE
+READ RECORDS ALPHABETICALLY FROM WORK FILE & LOAD SUBFILE)
+Work File: Initially program will read the database files and insert the data in a work file and later from work file all the screen fields populated.
+  MNSF09A MINERAL DIVISION ORDER  DUP LEASE WORK FILE  C1  MENU   C3  NO DUP    
+  OOOOOOOOOOOOOOOOOOOOOOOOOOOOOO                       C2  SELECT C5  RELOAD    
+                                                                  C21 DUP AS IS 
+ FROM LEASE.: 6666666  DUP TO LEASE...: 9999999   (If 0, computer will assign)  
+ D/O ITEMS..: 6666     DUP D/O ITEMS..: 6666      DUP TO ALT LEASE?.: B         
+ TOT DECINT.: 6.666666 DUP TOT DECINT.: 6.666666                         DLT    
+                                                     SP  INT   DECIMAL   WRK    
+  LN   OWNER#  NAME                       ADDR       OPR TYP   INTREST   RCD    
+  666  6666666  OOOOOOOOOOOOOOOOOOOOOOOO  OOOOOOOOOO 666  OO  9.999999-   B     
+  666  6666666  OOOOOOOOOOOOOOOOOOOOOOOO  OOOOOOOOOO 666  OO  9.999999-   B     
+  666  6666666  OOOOOOOOOOOOOOOOOOOOOOOO  OOOOOOOOOO 666  OO  9.999999-   B     
+  666  6666666  OOOOOOOOOOOOOOOOOOOOOOOO  OOOOOOOOOO 666  OO  9.999999-   B     
+  666  6666666  OOOOOOOOOOOOOOOOOOOOOOOO  OOOOOOOOOO 666  OO  9.999999-   B     
+  666  6666666  OOOOOOOOOOOOOOOOOOOOOOOO  OOOOOOOOOO 666  OO  9.999999-   B     
+  666  6666666  OOOOOOOOOOOOOOOOOOOOOOOO  OOOOOOOOOO 666  OO  9.999999-   B     
+  666  6666666  OOOOOOOOOOOOOOOOOOOOOOOO  OOOOOOOOOO 666  OO  9.999999-   B     
+  666  6666666  OOOOOOOOOOOOOOOOOOOOOOOO  OOOOOOOOOO 666  OO  9.999999-   B     
+  666  6666666  OOOOOOOOOOOOOOOOOOOOOOOO  OOOOOOOOOO 666  OO  9.999999-   B     
+  666  6666666  OOOOOOOOOOOOOOOOOOOOOOOO  OOOOOOOOOO 666  OO  9.999999-   B     
+  666  6666666  OOOOOOOOOOOOOOOOOOOOOOOO  OOOOOOOOOO 666  OO  9.999999-   B     
+  666  6666666  OOOOOOOOOOOOOOOOOOOOOOOO  OOOOOOOOOO 666  OO  9.999999-   B     
+  666  6666666  OOOOOOOOOOOOOOOOOOOOOOOO  OOOOOOOOOO 666  OO  9.999999-   B     
+Function Keys:
+
+F21: DUP AS IS – Key pressed(F21)
+             	// CREATE DUP LEASE
+If DUP2ALT = 'Y'	
+// IF NOT COMPUTER-GENERATED LSE#
+If DUPTLS = DUPLS#
+Update MNNPF Set NLSE# = NLSE# + 1 using JOB 
+Insert into MNHPF values ( JOB, LSE# = NLSE# and further fields….)
+		Else
+			NEWLSE = DUPTLS
+		EndIf
+		IF        DUP2ALT = 'Y'
+			NEWLSE = HALSE#(Alternate Lease#)
+		Endif
+		Select *from MNOLFO file with key (JOB, OWNER).
+If HAJOB# <> 0 AND HALSE# <> 0
+Select * from MNHLFL file with key (JOB, LSE#).
+Call the program ‘MNOWFMW2’
+		EndIf
+		IF        DUP2ALT = 'Y'
+Select *from from MNNPF file with the key HAJOB#
+		Else
+Select *from from MNNPF file with the key JOB
+		EndIf
+Update record in MNNPR file by update the field NPAR# =  NPAR# + 1
+Write record into MNDLFO file.
+Write record into MNOLFN file.
+Call the program 'UPDMNOPF6C' with the parameter job, owner
+Write record into mnolf3a file
+
+Validation:
+// IF NEW LEASE NUMBER IS NOT TO BE COMPUTER GENERATED
+Check DUPTLS <> DUPLS# then execute the below logic.
+// VALIDATE LEASE NUMBER EXISTS
+1)	If DUPTLS > *Zeros, then check the record in file (Select *from MNHLFL using JOB and DUPTLS) If record not found then show error ('Invalid lse# - does not exist'-).
+2)	check the record in file (Select *from MNDLFL using JOB, DUPTLS) If record not found then show error (‘Invalid lse# - this lease has d/o''s assigned')
+//Read the screen change record.
+When SCRINT <> NEWINT then check If NEWINT <= 0 OR NEWINT > 1 then show the error ‘'Invalid interest.'’.
+if DELCOD <> *BLANK then delete from MNDPF1 file using LSE#,SOPR,LSETYP,NAME30,OWNER
+
+
+
